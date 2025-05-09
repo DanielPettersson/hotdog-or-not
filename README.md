@@ -17,10 +17,7 @@ A web application that uses OpperAI to determine if an image contains a hotdog.
 ## Setup
 
 1. Clone this repository
-2. Install dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
+2. Make sure you have uv installed
 3. Create a `.env` file in the project root with your OpperAI API key:
    ```
    OPPER_API_KEY=your_api_key_here
@@ -31,7 +28,7 @@ A web application that uses OpperAI to determine if an image contains a hotdog.
 ### Basic Usage
 
 ```bash
-python main.py
+uv run main.py
 ```
 
 This will start the server on all network interfaces (0.0.0.0) on port 5000.
