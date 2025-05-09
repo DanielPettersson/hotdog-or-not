@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotdog Detector</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/png">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&display=swap">
+    <style>
+        /* 90s Style */
+        body {
+            background-color: #000080; /* Navy background */
+            background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAvUlEQVR4nO3ZQQ6DMAwF0Tnt/a/cbuiiUmQ+kMR4BjJrCO+TqGlrrbVWh07FJ1PxydS9+4M/pqEXpOklA5lAJpAJZAKZQCaQCWQCmUAmkAlkerlZ95+vIb0EgUwgE8gEMoFMIBPIBDKBTCATyAQyvcysaxGdQCaQCWQCmUAmkAlkAplAJpAJZAKZXm7W/efeXUMm11AgE8gEMoFMIBPIBDKBTCATyAQygUwvN+vac5r0EgQygUwgE8gEMoFMe8/+AY8gMJAqbvHOAAAAAElFTkSuQmCC"); /* Star pattern background */
+            color: #ffffff;
+            font-family: 'VT323', monospace;
+            padding: 0;
+            margin: 0;
+            image-rendering: pixelated;
+            overflow-x: hidden;
+            position: relative;
+        }
+        
+        /* Bouncing hotdogs */
+        .hotdog-float {
+            position: fixed;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: -1;
+            opacity: 0.7;
+            transform-origin: center;
+            filter: drop-shadow(0 0 5px rgba(255, 255, 0, 0.3));
+        }
+        
+        /* CRT effect container */
+        .crt-container {
+            position: relative;
+            width: 100%;
+            overflow: hidden;
+            border: 3px inset #808080;
+            background-color: #000000;
+        }
+        
+        .crt-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background: linear-gradient(
+                rgba(18, 16, 16, 0) 50%, 
+                rgba(0, 0, 0, 0.25) 50%
+            );
+            background-size: 100% 4px;
+            z-index: 1;
+        }
+        
+        .crt-canvas {
+            width: 100%;
+            display: block;
+        }
+        
+        /* Additional CRT effects */
+        .crt-container::before {
+            content: "";
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(
+                circle at center,
+                transparent 50%,
+                rgba(0, 0, 0, 0.5) 100%
+            );
+            pointer-events: none;
+            z-index: 2;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 15px;
+        }
+        .page-title {
+            font-size: 36px;
+            text-align: center;
+            color: #ffff00; /* Yellow text */
+            text-shadow: 3px 3px 0 #ff00ff; /* Magenta shadow */
+            margin-bottom: 20px;
+            animation: blink 1s infinite;
+        }
+        .card {
+            background-color: #c0c0c0; /* Silver background */
+            border: 4px outset #ffffff;
+            border-radius: 0;
+            margin-bottom: 20px;
+            box-shadow: 5px 5px 0 #000000;
+        }
+        .card-header {
+            background: linear-gradient(to right, #ff0000, #ff00ff, #0000ff);
+            color: #ffffff;
+            text-align: center;
+            padding: 10px;
+            font-size: 24px;
+            border-bottom: 4px ridge #808080;
+        }
+        .card-body {
+            padding: 15px;
+            color: #000000;
+        }
+        .camera-area {
+            border: 3px inset #808080;
+            background-color: #000000;
+            padding: 10px;
+            margin-bottom: 15px;
+        }
+        .camera-placeholder {
+            background-color: #000000;
+            color: #00ff00; /* Green text */
+            padding: 30px 10px;
+            text-align: center;
+        }
+        .camera-icon {
+            font-size: 48px;
+            animation: spin 3s linear infinite;
+        }
+        .camera-controls {
+            text-align: center;
+            margin-top: 15px;
+        }
+        .result-card {
+            background-color: #c0c0c0;
+        }
+        .hotdog-yes {
+            background: repeating-linear-gradient(
+                45deg,
+                #00aa00,
+                #00aa00 10px,
+                #008800 10px,
+                #008800 20px
+            );
+            color: #ffffff;
+            text-shadow: 2px 2px 0 #000000;
+        }
+        .hotdog-no {
+            background: repeating-linear-gradient(
+                45deg,
+                #aa0000,
+                #aa0000 10px,
+                #880000 10px,
+                #880000 20px
+            );
+            color: #ffffff;
+            text-shadow: 2px 2px 0 #000000;
+        }
+        .retro-btn {
+            background-color: #c0c0c0;
+            border: 4px outset #ffffff;
+            color: #000000;
+            padding: 5px 15px;
+            font-family: 'VT323', monospace;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 5px;
+            box-shadow: 3px 3px 0 #000000;
+        }
+        .retro-btn:active {
+            border-style: inset;
+            box-shadow: 1px 1px 0 #000000;
+        }
+        .retro-btn-primary {
+            background-color: #0000aa;
+            color: #ffffff;
+        }
+        .retro-btn-success {
+            background-color: #00aa00;
+            color: #ffffff;
+        }
+        .retro-btn-secondary {
+            background-color: #aa0000;
+            color: #ffffff;
+        }
+        .confidence-meter {
+            height: 20px;
+            border: 3px inset #808080;
+            margin: 10px 0;
+            background-color: #000000;
+        }
+        .confidence-value {
+            height: 100%;
+            background: repeating-linear-gradient(
+                90deg,
+                #00ff00,
+                #00ff00 5px,
+                #00aa00 5px,
+                #00aa00 10px
+            );
+        }
+        .confidence-score {
+            font-size: 20px;
+            font-weight: bold;
+            margin-top: 5px;
+            animation: rainbow 2s linear infinite;
+        }
+        .high-confidence {
+            color: #00aa00;
+        }
+        .medium-confidence {
+            color: #aaaa00;
+        }
+        .low-confidence {
+            color: #aa0000;
+        }
+        .hidden {
+            display: none !important;
+        }
+        .spinner-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+        .spinner-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .spinner-container {
+            text-align: center;
+            color: #00ff00;
+        }
+        .hotdog-icon {
+            font-size: 36px;
+            display: inline-block;
+            animation: bounce 1s infinite alternate;
+        }
+        .spinner-text {
+            font-size: 24px;
+            margin-top: 10px;
+            color: #00ff00;
+        }
+        .under-construction {
+            text-align: center;
+            font-size: 12px;
+            background-color: #ffff00;
+            color: #000000;
+            padding: 5px;
+            margin-top: 20px;
+            border: 2px solid #000000;
+            animation: blink 1s infinite;
+        }
+        .pixelated-img {
+            image-rendering: pixelated;
+            border: 3px inset #808080;
+            background-color: #000000;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @keyframes bounce {
+            from { transform: translateY(-10px); }
+            to { transform: translateY(10px); }
+        }
+        @keyframes blink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0.5; }
+        }
+        @keyframes rainbow {
+            0% { color: #ff0000; }
+            16% { color: #ff8000; }
+            33% { color: #ffff00; }
+            50% { color: #00ff00; }
+            66% { color: #00ffff; }
+            83% { color: #0000ff; }
+            100% { color: #ff00ff; }
+        }
+        .accordion {
+            margin-top: 15px;
+        }
+        .accordion-button {
+            background-color: #c0c0c0;
+            border: 2px outset #ffffff;
+            color: #000000;
+            padding: 5px 10px;
+            font-family: 'VT323', monospace;
+            font-size: 16px;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+        }
+        .accordion-content {
+            border: 2px inset #808080;
+            background-color: #000000;
+            color: #00ff00;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            display: none;
+        }
+        .accordion-content.active {
+            display: block;
+        }
+        /* Marquee effect */
+        .marquee {
+            white-space: nowrap;
+            overflow: hidden;
+            box-sizing: border-box;
+            animation: marquee 15s linear infinite;
+        }
+        @keyframes marquee {
+            0% { transform: translate(100%, 0); }
+            100% { transform: translate(-100%, 0); }
+        }
+        .camera-flash {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: white;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .flash-animation {
+            animation: flash 0.5s ease-out;
+        }
+        @keyframes flash {
+            0% { opacity: 0; }
+            50% { opacity: 0.8; }
+            100% { opacity: 0; }
+        }
+        .hit-counter {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 14px;
+            color: #ffffff;
+        }
+        
+        /* Construction marquee */
+        .construction-marquee {
+            display: flex;
+            overflow: hidden;
+            white-space: nowrap;
+            width: 100%;
+        }
+        
+        .construction-marquee span {
+            display: inline-block;
+            padding-left: 20px;
+            animation: construction-scroll 10s linear infinite;
+            width: 100%;
+        }
+        
+        .construction-marquee span:nth-child(2) {
+            animation-delay: -3.33s;
+        }
+        
+        .construction-marquee span:nth-child(3) {
+            animation-delay: -6.66s;
+        }
+        
+        @keyframes construction-scroll {
+            0% { transform: translateX(calc(50% + 100px)); }
+            100% { transform: translateX(calc(-50% - 100px)); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading spinner overlay -->
+    <div class="spinner-overlay" id="loading-spinner">
+        <div class="spinner-container">
+            <div class="hotdog-icon">🌭</div>
+            <div>
+                <pre>
+   _____                _           _             
+  / ____|              | |         (_)            
+ | (___   ___ __ _ _ __| |__  _ __  _ _ __   __ _ 
+  \___ \ / __/ _` | '__| '_ \| '_ \| | '_ \ / _` |
+  ____) | (_| (_| | |  | | | | | | | | | | | (_| |
+ |_____/ \___\__,_|_|  |_| |_|_| |_|_|_| |_|\__, |
+                                             __/ |
+                                            |___/ 
+                </pre>
+            </div>
+            <div class="spinner-text">ANALYZING IMAGE...</div>
+            <div class="marquee">PLEASE WAIT... PROCESSING... PLEASE WAIT... PROCESSING...</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h1 class="page-title">HOT DOG DETECTOR v1.0</h1>
+        
+        <div class="card">
+            <div class="card-header">
+                <span>Is it a Hotdog?</span>
+            </div>
+            <div class="card-body">
+                {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                <div style="background-color: #aa0000; color: #ffffff; padding: 5px; margin-bottom: 10px; border: 2px solid #000000;">
+                    {% for message in messages %}
+                    {{ message }}
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% endwith %}
+
+                <form method="post" enctype="multipart/form-data" id="upload-form">
+                    <div class="camera-area">
+                        <div class="camera-flash" id="camera-flash"></div>
+                        
+                        <!-- Camera placeholder (shown before camera starts) -->
+                        <div id="camera-placeholder" class="camera-placeholder">
+                            <div class="camera-icon">📷</div>
+                            <h3>[ CAMERA ACCESS REQUIRED ]</h3>
+                            <p>Click the button below to enable your camera</p>
+                        </div>
+                        
+                        <!-- CRT effect container (shown when camera is active) -->
+                        <div id="crt-container" class="crt-container hidden">
+                            <!-- Video stream (hidden, used as texture source) -->
+                            <video id="camera-stream" autoplay playsinline class="hidden"></video>
+                            
+                            <!-- WebGL canvas for shader effects -->
+                            <canvas id="crt-canvas" class="crt-canvas"></canvas>
+                            
+                            <!-- Scanline overlay -->
+                            <div class="crt-overlay"></div>
+                        </div>
+                        
+                        <!-- Canvas for capturing the image (hidden) -->
+                        <canvas id="capture-canvas" class="hidden"></canvas>
+                        
+                        <!-- Image preview (shown after taking a photo) -->
+                        <div id="image-preview" class="text-center hidden">
+                            <img id="preview-img" class="pixelated-img" style="max-width: 100%;" src="" alt="Preview">
+                        </div>
+                    </div>
+                    
+                    <div class="camera-controls">
+                        <!-- Start camera button -->
+                        <button type="button" id="start-camera" class="retro-btn retro-btn-primary">
+                            [ENABLE CAMERA]
+                        </button>
+                        
+                        <!-- Capture photo button (hidden initially) -->
+                        <button type="button" id="capture-photo" class="retro-btn retro-btn-primary hidden">
+                            [TAKE PHOTO]
+                        </button>
+                        
+                        <!-- Retake photo button (hidden initially) -->
+                        <button type="button" id="retake-photo" class="retro-btn retro-btn-secondary hidden">
+                            [RETAKE PHOTO]
+                        </button>
+                        
+                        <!-- Analyze button (hidden initially) -->
+                        <button type="submit" id="analyze-photo" class="retro-btn retro-btn-success hidden">
+                            [ANALYZE PHOTO]
+                        </button>
+                        
+                        <!-- Hidden file input for image data -->
+                        <input type="hidden" id="image-data" name="image_data">
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% if result %}
+        <div class="card result-card {% if result.contains_hotdog %}hotdog-yes{% else %}hotdog-no{% endif %}">
+            <div class="card-header">
+                <h2 class="text-center mb-0">
+                    {% if result.contains_hotdog %}
+                    !! YES, IT'S A HOTDOG !! 🌭
+                    {% else %}
+                    !! NO, NOT A HOTDOG !! ❌
+                    {% endif %}
+                </h2>
+            </div>
+            <div class="card-body" style="color: #ffffff;">
+                <div style="display: flex; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 250px; padding: 10px;">
+                        {% if image_path %}
+                        <div>
+                            <img src="{{ url_for('uploaded_file', filename=image_path) }}" alt="Uploaded Image" class="pixelated-img" style="max-width: 100%;">
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div style="flex: 1; min-width: 250px; padding: 10px;">
+                        <h3 style="text-decoration: underline;">ANALYSIS RESULTS:</h3>
+                        <p>{{ result.explanation }}</p>
+                        
+                        <div style="margin-top: 15px;">
+                            <h3 style="text-decoration: underline;">CONFIDENCE LEVEL:</h3>
+                            <div class="confidence-meter">
+                                <div class="confidence-value" style="width: {{ result.confidence_score * 100 }}%;"></div>
+                            </div>
+                            <div class="confidence-score {% if result.confidence_score >= 0.8 %}high-confidence{% elif result.confidence_score >= 0.5 %}medium-confidence{% else %}low-confidence{% endif %}">
+                                {{ "%.0f"|format(result.confidence_score * 100) }}%
+                            </div>
+                        </div>
+                        
+                        <div class="accordion" id="thoughtsAccordion">
+                            <button class="accordion-button" id="thoughtsButton">
+                                [+] AI SYSTEM THOUGHTS
+                            </button>
+                            <div class="accordion-content" id="thoughtsContent">
+{{ result.thoughts }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="under-construction">
+            <div class="construction-marquee">
+                <span>🚧 SITE UNDER CONSTRUCTION 🚧</span>
+            </div>
+        </div>
+        
+        <div class="hit-counter">
+            Visitors: 00012345 | Best viewed in Netscape Navigator 3.0
+        </div>
+    </div>
+
+    <!-- GLSL Shader Scripts -->
+    <script id="vertex-shader" type="x-shader/x-vertex">
+        attribute vec2 a_position;
+        attribute vec2 a_texCoord;
+        
+        varying vec2 v_texCoord;
+        
+        void main() {
+            gl_Position = vec4(a_position, 0, 1);
+            v_texCoord = a_texCoord;
+        }
+    </script>
+    
+    <script id="fragment-shader" type="x-shader/x-fragment">
+        precision mediump float;
+        
+        uniform sampler2D u_image;
+        uniform vec2 u_resolution;
+        uniform float u_time;
+        
+        varying vec2 v_texCoord;
+        
+        // CRT parameters
+        const float curvature = 0.15; // Screen curvature
+        const float vignetteStrength = 0.3; // Vignette darkness
+        const float scanlineStrength = 0.10; // Scanline opacity
+        const float rgbOffset = 0.003; // RGB split amount
+        const float noiseStrength = 0.1; // Noise amount
+        const float flickerStrength = 0.03; // Screen flicker amount
+        
+        // Converts coordinates to distorted CRT-like display
+        vec2 curveRemapUV(vec2 uv) {
+            uv.y = 1.0 - uv.y;
+
+            // Center coordinates
+            vec2 cc = uv * 2.0 - 1.0;
+            
+            // Apply curvature distortion
+            float distFromCenter = dot(cc, cc) * curvature;
+            cc *= 1.0 + distFromCenter;
+            
+            // Return to 0-1 range
+            return cc * 0.5 + 0.5;
+        }
+        
+        // Random noise function
+        float noise(vec2 p) {
+            return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+        }
+        
+        void main() {
+            // Apply curved CRT effect to coordinates
+            vec2 uv = curveRemapUV(v_texCoord);
+            
+            // Check if the coordinates are outside the valid range (for curvature)
+            if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+                gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+                return;
+            }
+            
+            // Screen flicker effect
+            float flicker = 1.0 + flickerStrength * sin(u_time * 8.0);
+            
+            // Add subtle RGB offset (chromatic aberration)
+            float r = texture2D(u_image, uv + vec2(rgbOffset, 0.0)).r;
+            float g = texture2D(u_image, uv).g;
+            float b = texture2D(u_image, uv - vec2(rgbOffset, 0.0)).b;
+            
+            // Create base color
+            vec4 color = vec4(r, g, b, 1.0);
+            
+            // Apply scanlines
+            float scanline = sin(uv.y * u_resolution.y * 1.0) * 0.5 + 0.5;
+            color = mix(color, color * (1.0 - scanlineStrength), pow(scanline, 1.5));
+            
+            // Apply vignette (darker edges)
+            float vignetteDistance = length(uv * 2.0 - 1.0);
+            float vignette = 1.0 - vignetteDistance * vignetteStrength;
+            color.rgb *= vignette;
+            
+            // Apply noise
+            color.rgb += (noise(uv + u_time * 0.01) - 0.5) * noiseStrength;
+            
+            // Apply flicker
+            color.rgb *= flicker;
+            
+            gl_FragColor = color;
+        }
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set confidence meter width based on data attribute
+            const confidenceValues = document.querySelectorAll('.confidence-value');
+            confidenceValues.forEach(el => {
+                const width = el.getAttribute('data-width');
+                if (width) {
+                    el.style.width = width + '%';
+                }
+            });
+            
+            // DOM element references
+            const cameraPlaceholder = document.getElementById('camera-placeholder');
+            const crtContainer = document.getElementById('crt-container');
+            const cameraStream = document.getElementById('camera-stream');
+            const crtCanvas = document.getElementById('crt-canvas');
+            const captureCanvas = document.getElementById('capture-canvas');
+            const imagePreview = document.getElementById('image-preview');
+            const previewImg = document.getElementById('preview-img');
+            const startCameraBtn = document.getElementById('start-camera');
+            const capturePhotoBtn = document.getElementById('capture-photo');
+            const retakePhotoBtn = document.getElementById('retake-photo');
+            const analyzePhotoBtn = document.getElementById('analyze-photo');
+            const cameraFlash = document.getElementById('camera-flash');
+            const imageData = document.getElementById('image-data');
+            const uploadForm = document.getElementById('upload-form');
+            const spinner = document.getElementById('loading-spinner');
+            
+            // WebGL variables
+            let gl = null;
+            let program = null;
+            let positionBuffer = null;
+            let texCoordBuffer = null;
+            let positionLocation = null;
+            let texCoordLocation = null;
+            let imageLocation = null;
+            let resolutionLocation = null;
+            let timeLocation = null;
+            let texture = null;
+            let startTime = null;
+            let animationFrame = null;
+            
+            // Function to setup WebGL
+            function setupWebGL() {
+                // Get WebGL context
+                gl = crtCanvas.getContext('webgl') || crtCanvas.getContext('experimental-webgl');
+                if (!gl) {
+                    console.error('WebGL not supported');
+                    return false;
+                }
+                
+                // Load shaders
+                const vertexShaderSource = document.getElementById('vertex-shader').text;
+                const fragmentShaderSource = document.getElementById('fragment-shader').text;
+                
+                // Create shaders
+                const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+                const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+                
+                // Create program
+                program = createProgram(gl, vertexShader, fragmentShader);
+                
+                // Look up uniform and attribute locations
+                positionLocation = gl.getAttribLocation(program, 'a_position');
+                texCoordLocation = gl.getAttribLocation(program, 'a_texCoord');
+                
+                imageLocation = gl.getUniformLocation(program, 'u_image');
+                resolutionLocation = gl.getUniformLocation(program, 'u_resolution');
+                timeLocation = gl.getUniformLocation(program, 'u_time');
+                
+                // Create buffers
+                positionBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+                    -1.0, -1.0,
+                     1.0, -1.0,
+                    -1.0,  1.0,
+                    -1.0,  1.0,
+                     1.0, -1.0,
+                     1.0,  1.0
+                ]), gl.STATIC_DRAW);
+                
+                texCoordBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+                    0.0, 0.0,
+                    1.0, 0.0,
+                    0.0, 1.0,
+                    0.0, 1.0,
+                    1.0, 0.0,
+                    1.0, 1.0
+                ]), gl.STATIC_DRAW);
+                
+                // Create texture
+                texture = gl.createTexture();
+                gl.bindTexture(gl.TEXTURE_2D, texture);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                
+                // Set start time for animation
+                startTime = performance.now();
+                
+                return true;
+            }
+            
+            // Helper to create shader
+            function createShader(gl, type, source) {
+                const shader = gl.createShader(type);
+                gl.shaderSource(shader, source);
+                gl.compileShader(shader);
+                
+                if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                    console.error('Error compiling shader:', gl.getShaderInfoLog(shader));
+                    gl.deleteShader(shader);
+                    return null;
+                }
+                
+                return shader;
+            }
+            
+            // Helper to create program
+            function createProgram(gl, vertexShader, fragmentShader) {
+                const program = gl.createProgram();
+                gl.attachShader(program, vertexShader);
+                gl.attachShader(program, fragmentShader);
+                gl.linkProgram(program);
+                
+                if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                    console.error('Error linking program:', gl.getProgramInfoLog(program));
+                    gl.deleteProgram(program);
+                    return null;
+                }
+                
+                return program;
+            }
+            
+            // Render function for the CRT effect
+            function render() {
+                if (!gl) return;
+                
+                // Resize canvas to match video dimensions while maintaining aspect ratio
+                const videoAspect = cameraStream.videoWidth / cameraStream.videoHeight;
+                const containerWidth = crtContainer.clientWidth;
+                let canvasWidth = containerWidth;
+                let canvasHeight = containerWidth / videoAspect;
+                
+                crtCanvas.width = canvasWidth;
+                crtCanvas.height = canvasHeight;
+                
+                // Set viewport
+                gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+                
+                // Clear canvas
+                gl.clearColor(0, 0, 0, 1);
+                gl.clear(gl.COLOR_BUFFER_BIT);
+                
+                // Use shader program
+                gl.useProgram(program);
+                
+                // Set up position attribute
+                gl.enableVertexAttribArray(positionLocation);
+                gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+                gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+                
+                // Set up texCoord attribute
+                gl.enableVertexAttribArray(texCoordLocation);
+                gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+                gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 0, 0);
+                
+                // Set uniforms
+                gl.uniform2f(resolutionLocation, gl.canvas.width, gl.canvas.height);
+                gl.uniform1f(timeLocation, (performance.now() - startTime) / 1000.0);
+                
+                // Set up texture
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, texture);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cameraStream);
+                gl.uniform1i(imageLocation, 0);
+                
+                // Draw
+                gl.drawArrays(gl.TRIANGLES, 0, 6);
+                
+                // Request next frame
+                animationFrame = requestAnimationFrame(render);
+            }
+            
+            // Accordion functionality
+            const thoughtsButton = document.getElementById('thoughtsButton');
+            const thoughtsContent = document.getElementById('thoughtsContent');
+            
+            if (thoughtsButton) {
+                thoughtsButton.addEventListener('click', function() {
+                    thoughtsContent.classList.toggle('active');
+                    if (thoughtsContent.classList.contains('active')) {
+                        thoughtsButton.textContent = '[-] AI SYSTEM THOUGHTS';
+                    } else {
+                        thoughtsButton.textContent = '[+] AI SYSTEM THOUGHTS';
+                    }
+                });
+            }
+            
+            let stream = null;
+            
+            // Start camera stream
+            startCameraBtn.addEventListener('click', async function() {
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { 
+                            facingMode: 'environment', // Prefer back camera if available
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        }
+                    });
+                    
+                    cameraStream.srcObject = stream;
+                    
+                    // Wait for video metadata to load
+                    cameraStream.onloadedmetadata = function() {
+                        // Setup WebGL for CRT effect
+                        if (setupWebGL()) {
+                            // Start rendering
+                            render();
+                        } else {
+                            console.error('Failed to setup WebGL, falling back to normal video');
+                            cameraStream.classList.remove('hidden');
+                        }
+                        
+                        // Update UI
+                        cameraPlaceholder.classList.add('hidden');
+                        crtContainer.classList.remove('hidden');
+                        startCameraBtn.classList.add('hidden');
+                        capturePhotoBtn.classList.remove('hidden');
+                    };
+                    
+                } catch (err) {
+                    console.error('Error accessing camera:', err);
+                    alert('CAMERA ERROR: Could not access camera. Please make sure you have granted permission.');
+                }
+            });
+            
+            // Capture photo
+            capturePhotoBtn.addEventListener('click', function() {
+                if (!cameraStream.srcObject) return;
+                
+                // Flash animation
+                cameraFlash.classList.add('flash-animation');
+                setTimeout(() => {
+                    cameraFlash.classList.remove('flash-animation');
+                }, 500);
+                
+                // Get canvas context
+                const canvas = captureCanvas;
+                const context = canvas.getContext('2d');
+                
+                // Set canvas dimensions to video dimensions
+                canvas.width = cameraStream.videoWidth;
+                canvas.height = cameraStream.videoHeight;
+                
+                // Cancel animation if running
+                if (animationFrame) {
+                    cancelAnimationFrame(animationFrame);
+                    animationFrame = null;
+                }
+                
+                // Draw the current frame of the video (without CRT effect)
+                context.drawImage(cameraStream, 0, 0, canvas.width, canvas.height);
+                
+                // Get image data URL
+                const imageDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                
+                // Set preview image
+                previewImg.src = imageDataUrl;
+                
+                // Update UI
+                crtContainer.classList.add('hidden');
+                imagePreview.classList.remove('hidden');
+                capturePhotoBtn.classList.add('hidden');
+                retakePhotoBtn.classList.remove('hidden');
+                analyzePhotoBtn.classList.remove('hidden');
+                
+                // Set form data
+                imageData.value = imageDataUrl;
+            });
+            
+            // Retake photo
+            retakePhotoBtn.addEventListener('click', function() {
+                // Update UI
+                imagePreview.classList.add('hidden');
+                crtContainer.classList.remove('hidden');
+                retakePhotoBtn.classList.add('hidden');
+                analyzePhotoBtn.classList.add('hidden');
+                capturePhotoBtn.classList.remove('hidden');
+                
+                // Clear form data
+                imageData.value = '';
+                
+                // Restart rendering if not already running
+                if (!animationFrame) {
+                    render();
+                }
+            });
+            
+            // Handle form submission
+            uploadForm.addEventListener('submit', function() {
+                if (imageData.value) {
+                    spinner.classList.add('active');
+                    
+                    // Cancel animation if running
+                    if (animationFrame) {
+                        cancelAnimationFrame(animationFrame);
+                        animationFrame = null;
+                    }
+                    
+                    // Stop the camera stream if it's still active
+                    if (stream) {
+                        stream.getTracks().forEach(track => track.stop());
+                    }
+                }
+            });
+            
+            // Floating hotdogs animation
+            function createFloatingHotdogs() {
+                // SVG hotdog content
+                const hotdogSVG = `
+                <svg width="50" height="30" viewBox="0 0 50 30" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M5,15 C5,21 11,25 25,25 C39,25 45,21 45,15 C45,13 45,13 45,12 C33,14 17,14 5,12 C5,13 5,13 5,15 Z" fill="#D6A656"/>
+                  <path d="M4,10 C4,14 10,18 25,18 C40,18 46,14 46,10 C46,6 40,2 25,2 C10,2 4,6 4,10 Z" fill="#CF4A30"/>
+                  <path d="M5,5 C5,-1 11,-5 25,-5 C39,-5 45,-1 45,5 C45,7 45,7 45,8 C33,6 17,6 5,8 C5,7 5,7 5,5 Z" fill="#D6A656"/>
+                  <path d="M15,5 C15,5 21,10 32,7" stroke="#E1D43B" stroke-width="2" stroke-linecap="round" fill="none"/>
+                  <path d="M12,12 C12,12 18,8 29,10" stroke="#A52A2A" stroke-width="2" stroke-linecap="round" fill="none"/>
+                </svg>`;
+                
+                // Hotdog objects array for tracking
+                const hotdogs = [];
+                
+                // Create hotdog objects with physics properties
+                function createHotdog() {
+                    // Create DOM element
+                    const hotdog = document.createElement('div');
+                    hotdog.className = 'hotdog-float';
+                    hotdog.innerHTML = hotdogSVG;
+                    document.body.appendChild(hotdog);
+                    
+                    // Random size (50-100% of original)
+                    const scale = 0.5 + Math.random() * 0.5;
+                    
+                    // Random initial position
+                    const width = 50 * scale;
+                    const height = 30 * scale;
+                    const x = Math.random() * (window.innerWidth - width);
+                    const y = Math.random() * (window.innerHeight - height);
+                    
+                    // Random velocity (pixels per frame at 60fps)
+                    const vx = (Math.random() - 0.5) * 4;
+                    const vy = (Math.random() - 0.5) * 4;
+                    
+                    // Random rotation
+                    const rotation = Math.random() * 360;
+                    const rotationSpeed = (Math.random() - 0.5) * 2;
+                    
+                    // Physics object
+                    return {
+                        element: hotdog,
+                        x: x,
+                        y: y,
+                        width: width,
+                        height: height,
+                        vx: vx,
+                        vy: vy,
+                        scale: scale,
+                        rotation: rotation,
+                        rotationSpeed: rotationSpeed,
+                        update: function() {
+                            // Update position
+                            this.x += this.vx;
+                            this.y += this.vy;
+                            this.rotation += this.rotationSpeed;
+                            
+                            // Bounce off edges with slight randomization
+                            if (this.x <= 0 || this.x + this.width >= window.innerWidth) {
+                                this.vx = -this.vx * (0.9 + Math.random() * 0.1);
+                                
+                                // Add a "bounce" effect by slightly changing vertical velocity
+                                this.vy += (Math.random() - 0.5) * 2;
+                                
+                                // Keep in bounds
+                                if (this.x <= 0) this.x = 0;
+                                if (this.x + this.width >= window.innerWidth) this.x = window.innerWidth - this.width;
+                            }
+                            
+                            if (this.y <= 0 || this.y + this.height >= window.innerHeight) {
+                                this.vy = -this.vy * (0.9 + Math.random() * 0.1);
+                                
+                                // Add a "bounce" effect by slightly changing horizontal velocity
+                                this.vx += (Math.random() - 0.5) * 2;
+                                
+                                // Keep in bounds
+                                if (this.y <= 0) this.y = 0;
+                                if (this.y + this.height >= window.innerHeight) this.y = window.innerHeight - this.height;
+                            }
+                            
+                            // Cap max velocity to prevent extreme speeds after bounces
+                            const maxVelocity = 6;
+                            this.vx = Math.max(Math.min(this.vx, maxVelocity), -maxVelocity);
+                            this.vy = Math.max(Math.min(this.vy, maxVelocity), -maxVelocity);
+                            
+                            // Apply position and rotation to element
+                            this.element.style.transform = `translate(${this.x}px, ${this.y}px) rotate(${this.rotation}deg) scale(${this.scale})`;
+                        }
+                    };
+                }
+                
+                // Add initial hotdogs with staggered creation
+                for (let i = 0; i < 100; i++) {
+                    setTimeout(() => {
+                        hotdogs.push(createHotdog());
+                    }, i * 50);
+                }
+                
+                // Animation loop using requestAnimationFrame
+                function animate() {
+                    // Update all hotdogs
+                    hotdogs.forEach(hotdog => hotdog.update());
+                    
+                    // Continue animation loop
+                    requestAnimationFrame(animate);
+                }
+                
+                // Start animation
+                animate();
+                
+                // Handle window resize
+                window.addEventListener('resize', function() {
+                    // Make sure hotdogs stay within new window bounds
+                    hotdogs.forEach(hotdog => {
+                        if (hotdog.x + hotdog.width > window.innerWidth) {
+                            hotdog.x = window.innerWidth - hotdog.width;
+                        }
+                        if (hotdog.y + hotdog.height > window.innerHeight) {
+                            hotdog.y = window.innerHeight - hotdog.height;
+                        }
+                    });
+                });
+            }
+            
+            // Start the animation
+            createFloatingHotdogs();
+        });
+    </script>
+</body>
+</html> 

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <!-- Bun (bottom) -->
+  <path d="M4,18 C4,22 8,24 16,24 C24,24 28,22 28,18 C28,17 28,17 28,16 C20,18 12,18 4,16 C4,17 4,17 4,18 Z" fill="#D6A656"/>
+  
+  <!-- Sausage -->
+  <path d="M3,14 C3,16 7,18 16,18 C25,18 29,16 29,14 C29,12 25,10 16,10 C7,10 3,12 3,14 Z" fill="#CF4A30"/>
+  
+  <!-- Bun (top) -->
+  <path d="M4,10 C4,6 8,4 16,4 C24,4 28,6 28,10 C28,11 28,11 28,12 C20,10 12,10 4,12 C4,11 4,11 4,10 Z" fill="#D6A656"/>
+  
+  <!-- Mustard -->
+  <path d="M10,10 C10,10 14,13 22,11" stroke="#E1D43B" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+  
+  <!-- Ketchup -->
+  <path d="M8,14 C8,14 12,11 20,13" stroke="#A52A2A" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+</svg> 
